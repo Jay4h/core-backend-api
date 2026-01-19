@@ -88,8 +88,19 @@ const getStats = async (req, res, next) => {
  */
 const healthCheck = async (req, res, next) => {
     try {
-        // Check database connection
-        const dbStatus = await User.db.db.admin().ping();
+        const mongoose = require('mongoose');
+
+        // Check database connection state (works in serverless)
+        const isConnected = mongoose.connection.readyState === 1;
+
+        // Try a simple query to verify database is actually working
+        let dbWorking = false;
+        try {
+            await User.findOne().limit(1);
+            dbWorking = true;
+        } catch (dbError) {
+            console.error('Database query failed:', dbError.message);
+        }
 
         res.status(200).json({
             success: true,
@@ -98,7 +109,7 @@ const healthCheck = async (req, res, next) => {
                 status: 'OK',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
-                database: dbStatus.ok === 1 ? 'connected' : 'disconnected',
+                database: isConnected && dbWorking ? 'connected' : 'disconnected',
                 environment: process.env.NODE_ENV || 'development'
             }
         });
